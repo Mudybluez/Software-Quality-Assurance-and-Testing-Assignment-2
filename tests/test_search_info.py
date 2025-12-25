@@ -23,7 +23,6 @@ def test_google_search_from_terminal():
     try:
         driver.get(GOOGLE_URL)
 
-        # 1️⃣ Accept cookies if present
         try:
             agree_button = wait.until(
                 EC.element_to_be_clickable(
@@ -35,7 +34,6 @@ def test_google_search_from_terminal():
         except Exception:
             print("[INFO] No cookie popup")
 
-        # 2️⃣ Search input
         search_input = wait.until(
             EC.visibility_of_element_located(
                 (By.NAME, "q")
@@ -46,14 +44,12 @@ def test_google_search_from_terminal():
         search_input.send_keys(query)
         search_input.send_keys(Keys.ENTER)
 
-        # 3️⃣ Results loaded
         wait.until(
             EC.presence_of_element_located(
                 (By.ID, "search")
             )
         )
 
-        # 4️⃣ Screenshot
         os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
         screenshot_path = os.path.join(
             SCREENSHOTS_DIR,

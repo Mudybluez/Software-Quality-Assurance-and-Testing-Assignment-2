@@ -19,7 +19,6 @@ def test_flight_booking_flow():
     try:
         driver.get(BOOKING_URL)
 
-        # 1️⃣ Select departure and destination
         from_city = Select(wait.until(
             EC.element_to_be_clickable((By.NAME, "fromPort"))
         ))
@@ -32,14 +31,12 @@ def test_flight_booking_flow():
 
         driver.find_element(By.CSS_SELECTOR, "input[type='submit']").click()
 
-        # 2️⃣ Choose first available flight
         wait.until(
             EC.presence_of_element_located((By.TAG_NAME, "table"))
         )
 
         driver.find_element(By.CSS_SELECTOR, "table tbody tr td input").click()
 
-        # 3️⃣ Fill passenger form
         wait.until(
             EC.visibility_of_element_located((By.ID, "inputName"))
         )
@@ -61,14 +58,12 @@ def test_flight_booking_flow():
 
         driver.find_element(By.CSS_SELECTOR, "input[type='submit']").click()
 
-        # 4️⃣ Confirmation
         confirmation = wait.until(
             EC.visibility_of_element_located((By.TAG_NAME, "h1"))
         )
 
         assert "Thank you for your purchase" in confirmation.text
 
-        # 5️⃣ Screenshot
         os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
         driver.save_screenshot(
             os.path.join(SCREENSHOTS_DIR, "booking_confirmation.png")
