@@ -1,96 +1,78 @@
 import os
+import pytest
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from utils.driver_factory import create_driver
-from utils.config import (
-    FLIGHT_BASE_URL,
-    FROM_CITY,
-    TO_CITY,
-    DEPARTURE_DATE,
-    RETURN_DATE,
-    EXPLICIT_WAIT,
-    SCREENSHOTS_DIR,
-)
+from utils.config import EXPLICIT_WAIT, SCREENSHOTS_DIR
 
 
-def test_flight_booking_search():
+BOOKING_URL = "https://www.blazedemo.com/"
+
+
+@pytest.mark.booking
+def test_flight_booking_flow():
     driver = create_driver()
     wait = WebDriverWait(driver, EXPLICIT_WAIT)
 
     try:
-        # 1️⃣ Open site
-        driver.get(FLIGHT_BASE_URL)
+        driver.get(BOOKING_URL)
 
-        # 2️⃣ Wait until booking form container appears (NOT input)
-        booking_form = wait.until(
-            EC.presence_of_element_located(
-                (By.XPATH, "//form | //div[contains(@class,'search')]")
-            )
+        # 1️⃣ Select departure and destination
+        from_city = Select(wait.until(
+            EC.element_to_be_clickable((By.NAME, "fromPort"))
+        ))
+        from_city.select_by_visible_text("Paris")
+
+        to_city = Select(wait.until(
+            EC.element_to_be_clickable((By.NAME, "toPort"))
+        ))
+        to_city.select_by_visible_text("Rome")
+
+        driver.find_element(By.CSS_SELECTOR, "input[type='submit']").click()
+
+        # 2️⃣ Choose first available flight
+        wait.until(
+            EC.presence_of_element_located((By.TAG_NAME, "table"))
         )
 
-        # 3️⃣ Title checkpoint BEFORE interaction
-        assert driver.title != "", "Page title is empty on main page"
+        driver.find_element(By.CSS_SELECTOR, "table tbody tr td input").click()
 
-        # 4️⃣ Try to interact with FROM field (best-effort)
-        try:
-            from_input = driver.find_element(
-                By.XPATH,
-                "//input[contains(@placeholder,'Откуда') or @aria-label='Откуда']"
-            )
-            from_input.click()
-            from_input.send_keys(FROM_CITY)
-            from_input.send_keys(Keys.ENTER)
-        except Exception:
-            print("[WARN] FROM field not accessible — dynamic UI")
+        # 3️⃣ Fill passenger form
+        wait.until(
+            EC.visibility_of_element_located((By.ID, "inputName"))
+        )
 
-        # 5️⃣ Try TO field
-        try:
-            to_input = driver.find_element(
-                By.XPATH,
-                "//input[contains(@placeholder,'Куда') or @aria-label='Куда']"
-            )
-            to_input.click()
-            to_input.send_keys(TO_CITY)
-            to_input.send_keys(Keys.ENTER)
-        except Exception:
-            print("[WARN] TO field not accessible — dynamic UI")
+        driver.find_element(By.ID, "inputName").send_keys("Test User")
+        driver.find_element(By.ID, "address").send_keys("Test Address 123")
+        driver.find_element(By.ID, "city").send_keys("Astana")
+        driver.find_element(By.ID, "state").send_keys("Test State")
+        driver.find_element(By.ID, "zipCode").send_keys("010000")
 
-        # 6️⃣ Click SEARCH if possible
-        try:
-            search_button = wait.until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, "//button[contains(text(),'Найти')]")
-                )
-            )
-            search_button.click()
-            print("[OK] Search button clicked")
-        except Exception:
-            print("[WARN] Search button not clickable")
+        Select(driver.find_element(By.ID, "cardType")).select_by_visible_text("Visa")
 
-        # 7️⃣ Title checkpoint AFTER interaction (REQUIRED)
-        wait.until(lambda d: d.title != "")
-        print(f"[INFO] Page title after interaction: {driver.title}")
+        driver.find_element(By.ID, "creditCardNumber").send_keys("4111111111111111")
+        driver.find_element(By.ID, "creditCardMonth").clear()
+        driver.find_element(By.ID, "creditCardMonth").send_keys("12")
+        driver.find_element(By.ID, "creditCardYear").clear()
+        driver.find_element(By.ID, "creditCardYear").send_keys("2030")
+        driver.find_element(By.ID, "nameOnCard").send_keys("TEST USER")
 
-        assert driver.title, "Page title missing after interaction"
+        driver.find_element(By.CSS_SELECTOR, "input[type='submit']").click()
 
-        # 8️⃣ Screenshot
+        # 4️⃣ Confirmation
+        confirmation = wait.until(
+            EC.visibility_of_element_located((By.TAG_NAME, "h1"))
+        )
+
+        assert "Thank you for your purchase" in confirmation.text
+
+        # 5️⃣ Screenshot
         os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
-        screenshot_path = os.path.join(
-            SCREENSHOTS_DIR,
-            "flight_booking_search.png"
+        driver.save_screenshot(
+            os.path.join(SCREENSHOTS_DIR, "booking_confirmation.png")
         )
-
-        success = driver.save_screenshot(screenshot_path)
-        assert success, "Screenshot was not saved"
-
-        print("[OK] Flight booking test completed")
 
     finally:
         driver.quit()
-
-
-if __name__ == "__main__":
-    test_flight_booking_search()

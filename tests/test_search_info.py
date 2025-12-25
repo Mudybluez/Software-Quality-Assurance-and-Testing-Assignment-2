@@ -1,64 +1,69 @@
 import os
+import pytest
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from utils.driver_factory import create_driver
-from utils.config import SCREENSHOTS_DIR, EXPLICIT_WAIT
+from utils.config import EXPLICIT_WAIT, SCREENSHOTS_DIR
 
 
-SEARCH_BASE_URL = "https://www.wikipedia.org"
-SEARCH_QUERY = "Aviation"
+GOOGLE_URL = "https://www.google.com"
 
 
-def test_search_information():
+@pytest.mark.search
+def test_google_search_from_terminal():
+    query = input("\n🔎 Enter Google search query: ").strip()
+    assert query, "Search query must not be empty"
+
     driver = create_driver()
     wait = WebDriverWait(driver, EXPLICIT_WAIT)
 
     try:
-        driver.get(SEARCH_BASE_URL)
+        driver.get(GOOGLE_URL)
 
-        # 1️⃣ Search input (CSS selector)
+        # 1️⃣ Accept cookies if present
+        try:
+            agree_button = wait.until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//button[.//text()[contains(., 'Accept') or contains(., 'I agree')]]")
+                )
+            )
+            agree_button.click()
+            print("[INFO] Google cookies accepted")
+        except Exception:
+            print("[INFO] No cookie popup")
+
+        # 2️⃣ Search input
         search_input = wait.until(
             EC.visibility_of_element_located(
-                (By.CSS_SELECTOR, "input#searchInput")
+                (By.NAME, "q")
             )
         )
 
         search_input.clear()
-        search_input.send_keys(SEARCH_QUERY)
+        search_input.send_keys(query)
         search_input.send_keys(Keys.ENTER)
 
-        # 2️⃣ Result page loaded:
-        # wait for ANY main content container (language-independent)
+        # 3️⃣ Results loaded
         wait.until(
             EC.presence_of_element_located(
-                (By.ID, "content")
+                (By.ID, "search")
             )
         )
-
-        # 3️⃣ Assertion: URL changed (search executed)
-        assert "wiki" in driver.current_url.lower(), "Search did not navigate to results page"
 
         # 4️⃣ Screenshot
         os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
         screenshot_path = os.path.join(
             SCREENSHOTS_DIR,
-            "search_information.png"
+            f"google_search_{query}.png"
         )
+        driver.save_screenshot(screenshot_path)
 
-        success = driver.save_screenshot(screenshot_path)
+        assert query.lower() in driver.current_url.lower()
 
-        print("[OK] Wikipedia search page loaded")
-        print(f"[OK] Current URL: {driver.current_url}")
-        print(f"[OK] Screenshot saved: {success}")
-
-        assert success, "Screenshot was not saved"
+        print(f"[OK] Google search completed for: {query}")
 
     finally:
         driver.quit()
-
-
-if __name__ == "__main__":
-    test_search_information()
